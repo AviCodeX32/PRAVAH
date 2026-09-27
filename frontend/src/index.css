@@ -1,0 +1,66 @@
+@import '@xyflow/react/dist/style.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+/* Custom hairline scrollbars for dense cockpit displays */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0D13;
+}
+::-webkit-scrollbar-thumb {
+  background: #262B3D;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3B425A;
+}
+
+/* React Flow custom styling for Stitch Institutional dark mode */
+.react-flow__background {
+  background-color: #0B0D13 !important;
+}
+
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 2px !important;
+  background-color: #3B425A !important;
+  border: 1px solid #64748B !important;
+}
+
+.react-flow__edge-path {
+  stroke: #3B425A !important;
+  stroke-width: 1.5 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #38BDF8 !important;
+}
+
+.react-flow__controls {
+  box-shadow: none !important;
+  border: 1px solid #262B3D !important;
+  background-color: #12151E !important;
+  border-radius: 4px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: #12151E !important;
+  border-bottom: 1px solid #262B3D !important;
+  fill: #94A3B8 !important;
+  color: #94A3B8 !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #1A1E2B !important;
+  fill: #F1F5F9 !important;
+}
