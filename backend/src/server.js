@@ -35,12 +35,24 @@ app.get('/health', (req, res) => {
 
 async function startServer() {
   await verifySupabaseConnection();
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`=======================================================`);
     console.log(`  PRAVAH BACKEND RUNNING ON SUPABASE POSTGRESQL        `);
     console.log(`  Cockpit API: http://localhost:${PORT}/api            `);
     console.log(`  Health Check: http://localhost:${PORT}/health        `);
     console.log(`=======================================================`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n[PRAVAH ERROR] Port ${PORT} is already in use by another running process.`);
+      console.error(`To fix this:`);
+      console.error(`  1. Terminate the existing process on port ${PORT}: Stop-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess -Force`);
+      console.error(`  2. Or change PORT in backend/.env to another port (e.g. PORT=5051)\n`);
+      process.exit(1);
+    } else {
+      console.error('[PRAVAH ERROR]', err);
+    }
   });
 }
 
