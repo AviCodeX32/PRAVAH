@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "@xyflow/react": "^12.3.6",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",

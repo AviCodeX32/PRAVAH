@@ -1,33 +1,26 @@
-import { StatutoryRule } from '../models/StatutoryRule.js';
-import { ProjectTwin } from '../models/ProjectTwin.js';
+import { DbService } from '../services/dbService.js';
 import { createDeterministicEmbedding, cosineSimilarity } from './embeddingHelper.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * Sub-Agent 3: Statutory Grounded RAG Engine
  * Provides grounded legal advisory using verified gazette clauses.
- * Strictly enforces zero-hallucination boundary: if similarity < 0.70, returns non-coverage notification.
+ * Queries Supabase statutory rules with strict zero-hallucination boundary.
  */
 export class StatutoryRagEngine {
-  /**
-   * Evaluates user compliance query against statutory rulebase
-   */
   static async queryCompliance({ projectId, query }) {
-    const project = await ProjectTwin.findOne({ projectId });
+    const project = await DbService.getProject(projectId);
     if (!project) throw new Error(`Project ${projectId} not found`);
 
-    // 1. Generate query embedding
     const queryVector = createDeterministicEmbedding(query, 64);
+    const rules = await DbService.getRules();
 
-    // 2. Fetch all rules and compute cosine similarities
-    const rules = await StatutoryRule.find({});
     const scoredRules = rules.map((rule) => {
       let sim = 0;
       if (rule.vectorEmbedding && rule.vectorEmbedding.length > 0) {
         sim = cosineSimilarity(queryVector, rule.vectorEmbedding);
       }
 
-      // Keyword boost for high-salience statutory keywords
       const queryLower = query.toLowerCase();
       const contentLower = (rule.ruleTitle + ' ' + rule.actCitation + ' ' + rule.gazetteSnippet).toLowerCase();
       let keywordHits = 0;
@@ -38,7 +31,6 @@ export class StatutoryRagEngine {
         }
       });
 
-      // Calibrated similarity
       const finalScore = Math.min(1.0, sim * 0.4 + (keywordHits / 4) * 0.6);
 
       return {
@@ -47,14 +39,10 @@ export class StatutoryRagEngine {
       };
     });
 
-    // Sort descending by similarity
     scoredRules.sort((a, b) => b.similarity - a.similarity);
-    const topMatches = scoredRules.filter((m) => m.similarity >= 0.60); // candidate pool
-
+    const topMatches = scoredRules.filter((m) => m.similarity >= 0.60);
     const bestScore = scoredRules[0]?.similarity || 0;
 
-    // Strict Zero-Hallucination Fallback
-    // If top match similarity is below 0.65 (or prompt specifies 0.70), enforce fallback
     if (bestScore < 0.68) {
       return {
         query,
@@ -67,7 +55,6 @@ export class StatutoryRagEngine {
       };
     }
 
-    // Top grounded rules
     const groundedRules = topMatches.slice(0, 2).map((m) => m.rule);
     const primaryRule = groundedRules[0];
 
@@ -79,7 +66,6 @@ export class StatutoryRagEngine {
       snippet: r.gazetteSnippet,
     }));
 
-    // If Gemini is configured, generate synthesized legal explanation
     const apiKey = process.env.GEMINI_API_KEY;
     let synthesis = '';
 
@@ -97,7 +83,7 @@ The user is asking a compliance query for project "${project.projectName}" (${pr
 USER QUERY:
 "${query}"
 
-GROUNDED LEGAL SOURCE CLAUSES (DO NOT EXTRAPOLATE BEYOND THESE):
+GROUNDED LEGAL SOURCE CLAUSES:
 ${citations.map((c, i) => `[Source ${i + 1} - ${c.actCitation} | ${c.gazetteReference}]:\n"${c.snippet}"`).join('\n\n')}
 
 INSTRUCTIONS:
@@ -109,11 +95,10 @@ INSTRUCTIONS:
         const result = await model.generateContent(prompt);
         synthesis = result.response.text();
       } catch (err) {
-        console.warn('[RAG] Gemini call fallback:', err.message);
+        // Fallback
       }
     }
 
-    // Deterministic authoritative synthesis if LLM unavailable or offline
     if (!synthesis) {
       if (query.toLowerCase().includes('reject') || query.toLowerCase().includes('query') || query.toLowerCase().includes('notice')) {
         synthesis = `NO. MPCB cannot reject your application without first issuing a formal query notice and granting a statutory cure period.

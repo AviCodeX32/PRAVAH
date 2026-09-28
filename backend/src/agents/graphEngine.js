@@ -1,22 +1,17 @@
-import { RegulatoryGraph } from '../models/RegulatoryGraph.js';
-import { AuditLedger } from '../models/AuditLedger.js';
-import { ProjectTwin } from '../models/ProjectTwin.js';
+import { DbService } from '../services/dbService.js';
 
 /**
  * Sub-Agent 2: Dependency Graph & Topological Engine
  * Executes deterministic graph state transitions, identifies parallel execution tracks,
  * and recalculates the project's critical path using topological analysis.
+ * Uses Supabase PostgreSQL persistence layer.
  */
 export class GraphEngine {
   /**
    * Evaluates and updates the state of all nodes in a project's regulatory graph.
-   * Deterministic logic:
-   * - A node is unblocked to 'READY_TO_APPLY' if all its prerequisite nodes are 'APPROVED'.
-   * - If any prerequisite is not 'APPROVED', downstream nodes stay 'BLOCKED' (unless already submitted/approved).
-   * - Independent nodes with zero prerequisites are marked 'READY_TO_APPLY' and flagged for parallel execution.
    */
   static async evaluateGraph(projectId, actorName = 'Graph Topological Solver') {
-    const graph = await RegulatoryGraph.findOne({ projectId });
+    const graph = await DbService.getGraph(projectId);
     if (!graph) throw new Error(`Regulatory graph for project ${projectId} not found.`);
 
     const nodeStatusMap = new Map();
@@ -27,12 +22,10 @@ export class GraphEngine {
       const currentStatus = node.status;
       const prereqs = node.prerequisiteCodes || [];
 
-      // Terminal or in-flight states are preserved unless explicitly modified
       if (['APPROVED', 'SUBMITTED', 'IN_INSPECTION', 'REJECTED'].includes(currentStatus)) {
         return node;
       }
 
-      // Check if all prerequisites are APPROVED
       const allPrereqsApproved =
         prereqs.length === 0 ||
         prereqs.every((pCode) => nodeStatusMap.get(pCode) === 'APPROVED');
@@ -69,16 +62,14 @@ export class GraphEngine {
 
     graph.nodes = updatedNodes;
 
-    // Recalculate Critical Path
     const { criticalPathDays, criticalPathNodes } = this.calculateCriticalPath(graph.nodes, graph.edges);
     graph.criticalPathDays = criticalPathDays;
     graph.criticalPathNodes = criticalPathNodes;
 
-    await graph.save();
+    await DbService.saveGraph(projectId, graph);
 
-    // Log audit events for state changes
     for (const change of stateChanges) {
-      await AuditLedger.create({
+      await DbService.addAuditLog({
         projectId,
         actorType: 'AI_AGENT',
         actorName,
@@ -98,9 +89,6 @@ export class GraphEngine {
     };
   }
 
-  /**
-   * Topological longest path (Critical Path) calculator
-   */
   static calculateCriticalPath(nodes, edges) {
     const nodeMap = new Map();
     nodes.forEach((n) => nodeMap.set(n.approvalCode, n));
@@ -120,7 +108,6 @@ export class GraphEngine {
       }
     });
 
-    // Kahn's algorithm for topological order
     const queue = [];
     inDegree.forEach((degree, code) => {
       if (degree === 0) queue.push(code);
@@ -138,7 +125,6 @@ export class GraphEngine {
       }
     }
 
-    // Longest path in DAG
     const dist = new Map();
     const parent = new Map();
     nodes.forEach((n) => dist.set(n.approvalCode, n.statutorySlaDays || 0));
@@ -155,7 +141,6 @@ export class GraphEngine {
       }
     }
 
-    // Find end node with maximum distance
     let maxDist = 0;
     let maxEndNode = null;
     dist.forEach((d, code) => {
@@ -165,7 +150,6 @@ export class GraphEngine {
       }
     });
 
-    // Reconstruct critical path
     const path = [];
     let curr = maxEndNode;
     while (curr) {
@@ -179,11 +163,8 @@ export class GraphEngine {
     };
   }
 
-  /**
-   * Approves a specific node and propagates state forward
-   */
   static async approveNode(projectId, approvalCode, actorName = 'Statutory Officer (MIDC/MPCB)') {
-    const graph = await RegulatoryGraph.findOne({ projectId });
+    const graph = await DbService.getGraph(projectId);
     if (!graph) throw new Error(`Project ${projectId} graph not found`);
 
     const targetNode = graph.nodes.find((n) => n.approvalCode === approvalCode);
@@ -195,9 +176,9 @@ export class GraphEngine {
     targetNode.slaRiskScore = 0.0;
     targetNode.slaRiskTier = 'NOMINAL';
 
-    await graph.save();
+    await DbService.saveGraph(projectId, graph);
 
-    await AuditLedger.create({
+    await DbService.addAuditLog({
       projectId,
       actorType: 'DEPARTMENT_OFFICER',
       actorName,
@@ -208,7 +189,6 @@ export class GraphEngine {
       justificationNote: `Statutory clearance granted for ${targetNode.approvalName} (${approvalCode}). Triggering downstream unblocking.`,
     });
 
-    // Automatically re-evaluate graph topological states
     const evalResult = await this.evaluateGraph(projectId, 'Graph Topological Solver (Auto-Propagate)');
     return evalResult;
   }

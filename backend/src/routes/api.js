@@ -1,26 +1,19 @@
 import express from 'express';
 import multer from 'multer';
-import { ProjectTwin } from '../models/ProjectTwin.js';
-import { RegulatoryGraph } from '../models/RegulatoryGraph.js';
-import { EvidenceWallet } from '../models/EvidenceWallet.js';
-import { StatutoryRule } from '../models/StatutoryRule.js';
-import { AuditLedger } from '../models/AuditLedger.js';
+import { DbService } from '../services/dbService.js';
 import { GraphEngine } from '../agents/graphEngine.js';
 import { DocumentAiEngine } from '../agents/documentAiEngine.js';
 import { StatutoryRagEngine } from '../agents/statutoryRagEngine.js';
 import { SlaGuardian } from '../agents/slaGuardian.js';
 import { PolicyImpactEngine } from '../agents/policyImpactEngine.js';
-import { seedDatabase } from '../scripts/seed.js';
 
 const router = express.Router();
 
-// Configure multer memory storage for PDF processing
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB max
+  limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-// SSE clients map
 const sseClients = new Map();
 
 export function broadcastCockpitUpdate(projectId, data) {
@@ -37,10 +30,6 @@ export function broadcastCockpitUpdate(projectId, data) {
   }
 }
 
-/**
- * GET /api/events/:projectId
- * Server-Sent Events endpoint for real-time reactivity
- */
 router.get('/events/:projectId', (req, res) => {
   const { projectId } = req.params;
 
@@ -54,7 +43,6 @@ router.get('/events/:projectId', (req, res) => {
   }
   sseClients.get(projectId).push(res);
 
-  // Send initial ping
   res.write(`data: ${JSON.stringify({ type: 'CONNECTED', projectId })}\n\n`);
 
   req.on('close', () => {
@@ -66,22 +54,18 @@ router.get('/events/:projectId', (req, res) => {
   });
 });
 
-/**
- * GET /api/project/:projectId
- * Fetches the full Regulatory Digital Twin snapshot
- */
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const project = await ProjectTwin.findOne({ projectId });
+    const project = await DbService.getProject(projectId);
     if (!project) {
       return res.status(404).json({ error: `Project ${projectId} not found` });
     }
 
-    const graph = await RegulatoryGraph.findOne({ projectId });
-    const evidence = await EvidenceWallet.find({ projectId }).sort({ updatedAt: -1 });
-    const auditLogs = await AuditLedger.find({ projectId }).sort({ timestamp: -1 }).limit(50);
-    const rules = await StatutoryRule.find({}, 'ruleCode ruleTitle actCitation gazetteReference baselineSlaDays');
+    const graph = await DbService.getGraph(projectId);
+    const evidence = await DbService.getEvidence(projectId);
+    const auditLogs = await DbService.getAuditLogs(projectId, 50);
+    const rules = await DbService.getRules();
 
     res.json({
       project,
@@ -95,10 +79,6 @@ router.get('/project/:projectId', async (req, res) => {
   }
 });
 
-/**
- * POST /api/project/approve-node
- * Approves an approval node and deterministically unblocks child nodes
- */
 router.post('/project/approve-node', async (req, res) => {
   try {
     const { projectId, approvalCode, actorName } = req.body;
@@ -114,10 +94,6 @@ router.post('/project/approve-node', async (req, res) => {
   }
 });
 
-/**
- * POST /api/project/recalculate-graph
- * Forces topological re-evaluation of dependencies
- */
 router.post('/project/recalculate-graph', async (req, res) => {
   try {
     const { projectId } = req.body;
@@ -129,10 +105,6 @@ router.post('/project/recalculate-graph', async (req, res) => {
   }
 });
 
-/**
- * POST /api/documents/upload
- * Document AI PDF Ingestion & Zero-Tolerance Discrepancy Detection
- */
 router.post('/documents/upload', upload.single('file'), async (req, res) => {
   try {
     const { projectId } = req.body;
@@ -147,7 +119,6 @@ router.post('/documents/upload', upload.single('file'), async (req, res) => {
       fileName = req.file.originalname;
       mimeType = req.file.mimetype;
     } else {
-      // Golden Path mock upload if no raw multipart body sent
       const mockText = `
 M/S R. K. DESHMUKH & ASSOCIATES
 CHARTERED ACCOUNTANTS
@@ -180,10 +151,6 @@ UDIN: 26048123ABCE99812
   }
 });
 
-/**
- * POST /api/documents/reconcile
- * Reconciles flagged fact discrepancy
- */
 router.post('/documents/reconcile', async (req, res) => {
   try {
     const { projectId, factKey, resolutionChoice } = req.body;
@@ -195,10 +162,6 @@ router.post('/documents/reconcile', async (req, res) => {
   }
 });
 
-/**
- * POST /api/rag/query
- * Statutory Grounded RAG Advisory Query
- */
 router.post('/rag/query', async (req, res) => {
   try {
     const { projectId, query } = req.body;
@@ -211,10 +174,6 @@ router.post('/rag/query', async (req, res) => {
   }
 });
 
-/**
- * POST /api/sla/simulate
- * Sub-Agent 4 SLA Timeline Simulation (e.g. +25 days)
- */
 router.post('/sla/simulate', async (req, res) => {
   try {
     const { projectId, nodeCode, daysDelta } = req.body;
@@ -226,10 +185,6 @@ router.post('/sla/simulate', async (req, res) => {
   }
 });
 
-/**
- * POST /api/policy/simulate
- * Sub-Agent 5 Regulatory Change Impact Engine (USP: Dynamic DAG Injection)
- */
 router.post('/policy/simulate', async (req, res) => {
   try {
     const result = await PolicyImpactEngine.simulatePolicyAmendment(req.body || {});
@@ -244,15 +199,11 @@ router.post('/policy/simulate', async (req, res) => {
   }
 });
 
-/**
- * POST /api/project/reset
- * Resets the project database back to initial Golden Path state
- */
 router.post('/project/reset', async (req, res) => {
   try {
-    await seedDatabase();
+    DbService.resetBaseline();
     broadcastCockpitUpdate('MAHA-AGRO-2026-8812', { type: 'RESET_COMPLETE' });
-    res.json({ success: true, message: 'Platform reset to initial Golden Path baseline.' });
+    res.json({ success: true, message: 'Platform reset to initial Golden Path baseline on Supabase PostgreSQL.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

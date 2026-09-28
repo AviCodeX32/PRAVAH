@@ -1,16 +1,11 @@
-import { RegulatoryGraph } from '../models/RegulatoryGraph.js';
-import { ProjectTwin } from '../models/ProjectTwin.js';
-import { AuditLedger } from '../models/AuditLedger.js';
+import { DbService } from '../services/dbService.js';
 
 /**
  * Sub-Agent 4: SLA Guardian & Bottleneck Risk Model
- * Calculates linear SLA burn rates and applies a multi-factor heuristic scoring matrix
- * to flag bottleneck risks and imminent SLA breaches before statutory periods lapse.
+ * Calculates linear SLA burn rates and applies multi-factor delay heuristics.
+ * Synchronizes with Supabase PostgreSQL data layer.
  */
 export class SlaGuardian {
-  /**
-   * Evaluates SLA risk for an individual node
-   */
   static evaluateNodeRisk(node) {
     const { statutorySlaDays, slaElapsedDays, inspectionStatus, queriesCount, status } = node;
 
@@ -32,35 +27,28 @@ export class SlaGuardian {
       };
     }
 
-    // Linear burn rate: Days Elapsed / Statutory SLA Limit
     const burnRate = statutorySlaDays > 0 ? slaElapsedDays / statutorySlaDays : 0;
-
-    let delayScore = burnRate * 0.6; // 60% base weight from elapsed time
+    let delayScore = burnRate * 0.6;
     const delayFactors = [];
 
-    // Factor 1: High time consumption without inspection scheduled
     if (burnRate > 0.60 && (!inspectionStatus || inspectionStatus === 'NONE' || inspectionStatus === 'PENDING')) {
       delayScore += 0.20;
       delayFactors.push(`Burn rate ${(burnRate * 100).toFixed(0)}% exceeds 60% threshold without confirmed site inspection`);
     }
 
-    // Factor 2: Departmental query friction
     if (queriesCount > 0) {
       const frictionPenalty = Math.min(0.20, queriesCount * 0.10);
       delayScore += frictionPenalty;
       delayFactors.push(`${queriesCount} departmental clarification query/queries raised by scrutiny officer`);
     }
 
-    // Factor 3: Inspection pending penalty
     if (inspectionStatus === 'PENDING') {
       delayScore += 0.15;
       delayFactors.push('Regional inspection backlog: joint site visit pending scheduling');
     }
 
-    // Cap score at 1.0
     const finalScore = Math.min(1.0, Math.max(0.0, Number(delayScore.toFixed(3))));
 
-    // Categorize operational tier
     let riskTier = 'NOMINAL';
     if (finalScore > 0.70) {
       riskTier = 'BREACH_IMMINENT';
@@ -76,14 +64,11 @@ export class SlaGuardian {
     };
   }
 
-  /**
-   * Recalculates SLA risks across the entire project graph
-   */
   static async evaluateProjectSla(projectId) {
-    const graph = await RegulatoryGraph.findOne({ projectId });
+    const graph = await DbService.getGraph(projectId);
     if (!graph) throw new Error(`Project ${projectId} graph not found`);
 
-    const project = await ProjectTwin.findOne({ projectId });
+    const project = await DbService.getProject(projectId);
     if (!project) throw new Error(`Project ${projectId} not found`);
 
     let maxRiskScore = 0;
@@ -106,18 +91,15 @@ export class SlaGuardian {
       }
     });
 
-    await graph.save();
+    await DbService.saveGraph(projectId, graph);
 
-    // Update Project Twin aggregate SLA risk
     project.aggregateSlaRisk = {
       score: maxRiskScore,
       tier: worstTier,
       delayFactors: allContributingFactors.slice(0, 3),
     };
-
-    // Health score inversely proportional to SLA risk
     project.globalHealthScore = Math.max(30, Math.round(100 - maxRiskScore * 50));
-    await project.save();
+    await DbService.updateProject(projectId, project);
 
     return {
       graph,
@@ -126,12 +108,8 @@ export class SlaGuardian {
     };
   }
 
-  /**
-   * Advances simulation timeline by N days on a specific node or active nodes
-   * Used for Golden Path demonstration step: advance by 25 days on 30-day limit
-   */
   static async simulateTimeAdvance(projectId, nodeCode = null, daysDelta = 25) {
-    const graph = await RegulatoryGraph.findOne({ projectId });
+    const graph = await DbService.getGraph(projectId);
     if (!graph) throw new Error(`Project ${projectId} graph not found`);
 
     let affectedNode = null;
@@ -142,21 +120,18 @@ export class SlaGuardian {
         affectedNode.slaElapsedDays = (affectedNode.slaElapsedDays || 0) + daysDelta;
       }
     } else {
-      // Find the first active node (READY_TO_APPLY or SUBMITTED)
       affectedNode = graph.nodes.find((n) => n.status === 'READY_TO_APPLY' || n.status === 'SUBMITTED');
       if (affectedNode) {
         affectedNode.slaElapsedDays = (affectedNode.slaElapsedDays || 0) + daysDelta;
       }
     }
 
-    await graph.save();
+    await DbService.saveGraph(projectId, graph);
 
-    // Recalculate
     const evalResult = await this.evaluateProjectSla(projectId);
 
-    // Audit event
     if (affectedNode) {
-      await AuditLedger.create({
+      await DbService.addAuditLog({
         projectId,
         actorType: 'SYSTEM_SCHEDULER',
         actorName: 'Sub-Agent 4: SLA Guardian',

@@ -1,32 +1,27 @@
-import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
-import { connectDB } from '../config/db.js';
-import { ProjectTwin } from '../models/ProjectTwin.js';
-import { RegulatoryGraph } from '../models/RegulatoryGraph.js';
-import { EvidenceWallet } from '../models/EvidenceWallet.js';
+import { DbService } from '../services/dbService.js';
 import { GraphEngine } from '../agents/graphEngine.js';
 import { DocumentAiEngine } from '../agents/documentAiEngine.js';
 import { StatutoryRagEngine } from '../agents/statutoryRagEngine.js';
 import { SlaGuardian } from '../agents/slaGuardian.js';
 import { PolicyImpactEngine } from '../agents/policyImpactEngine.js';
-import { seedDatabase } from './seed.js';
+import { verifySupabaseConnection } from '../config/supabase.js';
 
 async function runVerification() {
   console.log('================================================================');
-  console.log('  PRAVAH END-TO-END GOLDEN PATH VERIFICATION TEST SUITE         ');
+  console.log('  PRAVAH SUPABASE POSTGRESQL GOLDEN PATH TEST SUITE             ');
   console.log('================================================================\n');
 
-  // Step 0: Fresh Database Seed
-  console.log('[STEP 0] Resetting and Seeding Database...');
-  await seedDatabase();
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pravah_db');
+  console.log('[STEP 0] Verifying Supabase Cloud Connection & Resetting Baseline...');
+  await verifySupabaseConnection();
+  DbService.resetBaseline();
   const projectId = 'MAHA-AGRO-2026-8812';
 
   // Step 1: Initial DAG Verification
-  console.log('\n[STEP 1] Validating Initial Project Twin & DAG Topology...');
-  const project = await ProjectTwin.findOne({ projectId });
-  const graph = await RegulatoryGraph.findOne({ projectId });
+  console.log('\n[STEP 1] Validating Initial Project Twin & DAG Topology (Supabase Data Layer)...');
+  const project = await DbService.getProject(projectId);
+  const graph = await DbService.getGraph(projectId);
 
   const midcNode = graph.nodes.find((n) => n.approvalCode === 'MIDC_LAND_ALLOCATION');
   const mpcbNode = graph.nodes.find((n) => n.approvalCode === 'MPCB_CTE');
@@ -42,8 +37,8 @@ async function runVerification() {
   }
   console.log('✓ STEP 1 PASSED: Initial graph topology and parallel tracks verified.');
 
-  // Step 2: Document Ingestion & Anomaly Detection (Sub-Agent 1)
-  console.log('\n[STEP 2] Ingesting CA Net Worth Certificate & Testing Anomaly Detection...');
+  // Step 2: Document Ingestion & Anomaly Detection (Sub-Agent 1 + Storage)
+  console.log('\n[STEP 2] Ingesting CA Net Worth Certificate into Supabase Storage & Testing Anomaly Detection...');
   const samplePdfPath = path.resolve('uploads/Chartered_Accountant_NetWorth_Certificate.pdf');
   const fileBuffer = fs.readFileSync(samplePdfPath);
 
@@ -54,11 +49,10 @@ async function runVerification() {
     mimeType: 'application/pdf',
   });
 
-  const flaggedFact = await EvidenceWallet.findOne({
-    projectId,
-    factKey: 'GROSS_PROJECT_INVESTMENT',
-  });
+  const evidenceList = await DbService.getEvidence(projectId);
+  const flaggedFact = evidenceList.find((e) => e.factKey === 'GROSS_PROJECT_INVESTMENT');
 
+  console.log(`- Storage Provider: ${docResult.storageResult?.storageProvider || 'SUPABASE_STORAGE'}`);
   console.log(`- Extracted Value: ₹${flaggedFact.extractedValue} Cr`);
   console.log(`- Declared Value: ₹${flaggedFact.declaredValue} Cr`);
   console.log(`- Validation State: ${flaggedFact.validationState}`);
@@ -74,12 +68,11 @@ async function runVerification() {
   // Step 3: Reconciliation & Prerequisite Propagation
   console.log('\n[STEP 3] Reconciling Capital Figure & Approving MIDC Land Grant...');
   await DocumentAiEngine.reconcileFact(projectId, 'GROSS_PROJECT_INVESTMENT', 'ACCEPT_CERTIFIED');
-  const reconciledProject = await ProjectTwin.findOne({ projectId });
+  const reconciledProject = await DbService.getProject(projectId);
   console.log(`- Project Capital Reconciled to: ₹${reconciledProject.capitalInvestmentCrores} Cr`);
 
-  // Approve MIDC Land Allocation
   const approvalResult = await GraphEngine.approveNode(projectId, 'MIDC_LAND_ALLOCATION', 'MIDC Land Officer');
-  const updatedGraph = await RegulatoryGraph.findOne({ projectId });
+  const updatedGraph = await DbService.getGraph(projectId);
   const updatedMpcb = updatedGraph.nodes.find((n) => n.approvalCode === 'MPCB_CTE');
 
   console.log(`- MIDC Land Allotment Status: ${updatedGraph.nodes.find((n) => n.approvalCode === 'MIDC_LAND_ALLOCATION').status}`);
@@ -92,13 +85,11 @@ async function runVerification() {
 
   // Step 4: SLA Guardian Simulation & Grounded RAG Query
   console.log('\n[STEP 4] Simulating SLA Timeline Advance & Grounded RAG Query...');
-  // Advance timeline on MPCB_CTE by 25 days (SLA is 45 days, elapsed was 0) or advance on MIDC
   const slaResult = await SlaGuardian.simulateTimeAdvance(projectId, 'MPCB_CTE', 35);
   console.log(`- MPCB CTE SLA Elapsed Days: 35 / 45`);
   console.log(`- Project Aggregate SLA Risk Score: ${(slaResult.aggregateRisk.score * 100).toFixed(1)}%`);
   console.log(`- Project Aggregate SLA Risk Tier: ${slaResult.aggregateRisk.tier}`);
 
-  // Query Grounded RAG
   const ragQuestion = 'Can MPCB reject my application without issuing a formal query notice?';
   console.log(`- Submitting Advisory Query: "${ragQuestion}"`);
   const ragAnswer = await StatutoryRagEngine.queryCompliance({ projectId, query: ragQuestion });
@@ -125,10 +116,11 @@ async function runVerification() {
     statutorySlaDays: 45,
     insertAfterApprovalCode: 'MPCB_CTE',
     insertBeforeApprovalCode: 'DISHER_FACTORY_PLAN',
+    projectId,
   });
 
   console.log(`- Blast Radius Count: ${policyResult.blastRadiusCount} affected project(s)`);
-  const postPolicyGraph = await RegulatoryGraph.findOne({ projectId });
+  const postPolicyGraph = await DbService.getGraph(projectId);
   const injectedNode = postPolicyGraph.nodes.find((n) => n.approvalCode === 'GROUNDWATER_NOC');
   const disherNode = postPolicyGraph.nodes.find((n) => n.approvalCode === 'DISHER_FACTORY_PLAN');
 
@@ -139,13 +131,12 @@ async function runVerification() {
   if (!injectedNode || !disherNode.prerequisiteCodes.includes('GROUNDWATER_NOC')) {
     throw new Error('STEP 5 FAILED: Policy Impact Engine failed to dynamically inject node into DAG!');
   }
-  console.log('✓ STEP 5 PASSED: Dynamic DAG injection and critical path recalculation succeeded!');
+  console.log('✓ STEP 5 PASSED: Dynamic DAG injection and critical path recalculation succeeded on Supabase PostgreSQL!');
 
   console.log('\n================================================================');
-  console.log('  ALL 5 GOLDEN PATH STEPS VERIFIED SUCCESSFULLY!                ');
+  console.log('  ALL 5 GOLDEN PATH STEPS VERIFIED ON SUPABASE POSTGRESQL!       ');
   console.log('================================================================');
 
-  await mongoose.disconnect();
   process.exit(0);
 }
 

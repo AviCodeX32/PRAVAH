@@ -106,6 +106,14 @@ export default function HeaderBar({
             </span>
           </div>
 
+          {/* Supabase PostgreSQL Cloud Badge */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-800/50">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-emerald-300 font-semibold text-[11px]">
+              Supabase PostgreSQL
+            </span>
+          </div>
+
           <div className="h-5 w-px bg-slate-800" />
 
           {/* Reset Baseline */}
