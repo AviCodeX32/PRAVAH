@@ -108,30 +108,32 @@ export default function RegulatoryDagView({ graph, onApproveNode }) {
         animated: isPolicyInjected || edge.source === 'MIDC_LAND_ALLOCATION',
         label: edge.label,
         labelStyle: {
-          fill: '#94A3B8',
+          fill: '#334155',
           fontSize: '11px',
-          fontWeight: 500,
+          fontWeight: 600,
         },
         labelBgStyle: {
-          fill: '#0F172A',
-          fillOpacity: 0.9,
+          fill: '#FFFFFF',
+          fillOpacity: 0.95,
           rx: 4,
           ry: 4,
+          stroke: '#CBD5E1',
+          strokeWidth: 1,
         },
         style: {
           stroke: isPolicyInjected
-            ? '#06B6D4'
+            ? '#0D9488'
             : isParallel
-            ? '#818CF8'
-            : '#475569',
+            ? '#4F46E5'
+            : '#64748B',
           strokeWidth: isPolicyInjected ? 2.5 : 2,
           strokeDasharray: isParallel ? '6,6' : undefined,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: isPolicyInjected ? '#06B6D4' : isParallel ? '#818CF8' : '#475569',
-          width: 18,
-          height: 18,
+          color: isPolicyInjected ? '#0D9488' : isParallel ? '#4F46E5' : '#64748B',
+          width: 16,
+          height: 16,
         },
       };
     });
@@ -157,44 +159,44 @@ export default function RegulatoryDagView({ graph, onApproveNode }) {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-slate-950 text-slate-100 relative">
+    <div className="h-full w-full flex flex-col bg-slate-50 text-slate-900 relative">
       {/* Top Workflow Status & Explainer Banner */}
-      <div className="px-6 py-3.5 border-b border-slate-800 bg-slate-900/60 backdrop-blur-sm flex items-center justify-between z-10">
+      <div className="px-6 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between z-10 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-indigo-950/60 border border-indigo-800/40 text-indigo-400">
+          <div className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
             <Network className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-white">
-              Industrial Compliance Journey & Dependency Graph
+            <h2 className="text-sm font-bold text-slate-900">
+              Regulatory Dependency Graph (DAG Engine)
             </h2>
-            <p className="text-xs text-slate-400">
-              Deterministic regulatory map from land allotment to commercial operations. Steps unblock automatically when prerequisites are completed.
+            <p className="text-xs text-slate-500">
+              Live deterministic regulatory twin from land allotment to commercial operations. Steps unblock automatically when upstream statutory prerequisites are satisfied.
             </p>
           </div>
         </div>
 
         {/* Status Counters */}
-        <div className="flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="flex items-center gap-2.5 text-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             <span>{approvedCount} Completed</span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 font-medium">
-            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-semibold">
+            <Clock className="w-3.5 h-3.5 text-blue-600" />
             <span>{readyCount} Actionable</span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 font-medium">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium">
             <Lock className="w-3.5 h-3.5 text-slate-400" />
             <span>{blockedCount} Awaiting Upstream</span>
           </div>
 
-          <div className="h-4 w-px bg-slate-700 mx-1" />
+          <div className="h-4 w-px bg-slate-200 mx-1" />
 
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-medium">
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 font-bold">
+            <Layers className="w-3.5 h-3.5 text-teal-600" />
             <span>Critical Path: {graph?.criticalPathDays || 120} Days</span>
           </div>
         </div>
@@ -215,102 +217,105 @@ export default function RegulatoryDagView({ graph, onApproveNode }) {
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="#1E293B" gap={20} size={1} />
+          <Background color="#CBD5E1" gap={24} size={1} />
           <Controls
             showInteractive={false}
             position="bottom-left"
-            className="!bg-slate-900 !border-slate-800 !rounded-lg !overflow-hidden"
+            className="!bg-white !border-slate-200 !rounded-lg !overflow-hidden !shadow-sm"
           />
         </ReactFlow>
 
         {/* Node Detail Slide-Over Drawer */}
         {selectedNode && (
-          <div className="absolute top-4 right-4 w-96 max-h-[calc(100%-2rem)] rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-md shadow-2xl p-5 z-20 overflow-y-auto space-y-4">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+          <div className="absolute top-4 right-4 w-96 max-h-[calc(100%-2rem)] rounded-xl border border-slate-200 bg-white/95 backdrop-blur-md shadow-2xl p-5 z-20 overflow-y-auto space-y-4">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   {selectedNode.departmentName}
                 </span>
-                <h3 className="text-base font-bold text-white mt-0.5">
+                <h3 className="text-base font-bold text-slate-900 mt-0.5">
                   {selectedNode.approvalName}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedNode(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-                <span className="text-slate-400">Current Status:</span>
-                <span className="font-semibold text-white">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Current Status:</span>
+                <span className="font-bold text-slate-900">
                   {selectedNode.status === 'APPROVED'
-                    ? '✓ Approved'
+                    ? 'Statutory Approval Granted'
                     : selectedNode.status === 'READY_TO_APPLY'
-                    ? '⏱ Ready to Apply'
-                    : '🔒 Blocked (Prerequisites Pending)'}
+                    ? 'Eligible / Ready to Apply'
+                    : 'Prerequisites Pending'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-                <span className="text-slate-400">Statutory SLA:</span>
-                <span className="font-semibold text-slate-200">
-                  {selectedNode.statutorySlaDays} Calendar Days
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Department Authority:</span>
+                <span className="font-semibold text-slate-800 text-right">
+                  {selectedNode.departmentName}
                 </span>
               </div>
 
-              {selectedNode.prerequisiteCodes?.length > 0 && (
-                <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/60 space-y-1.5">
-                  <span className="text-slate-400 font-medium">Upstream Prerequisites:</span>
-                  <div className="space-y-1">
-                    {selectedNode.prerequisiteCodes.map((code) => {
-                      const pNode = rawNodes.find((n) => n.approvalCode === code);
-                      const isDone = pNode?.status === 'APPROVED';
-                      return (
-                        <div
-                          key={code}
-                          className="flex items-center justify-between text-[11px]"
-                        >
-                          <span className="text-slate-300">
-                            {pNode?.approvalName || code}
-                          </span>
-                          <span
-                            className={
-                              isDone ? 'text-emerald-400 font-medium' : 'text-slate-500'
-                            }
-                          >
-                            {isDone ? '✓ Completed' : 'Pending'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Statutory SLA Window:</span>
+                <span className="font-bold text-blue-700">
+                  {selectedNode.statutorySlaDays} Days (MTS / RTS Act)
+                </span>
+              </div>
 
               {selectedNode.injectedByPolicy && (
-                <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-800/60 text-cyan-200">
-                  <span className="font-semibold">Statutory Gazette Injection:</span>
-                  <p className="mt-1 text-[11px] text-cyan-300/90">
-                    {selectedNode.injectedPolicyReference ||
-                      'Dynamically added per Government Gazette Circular 2026/09.'}
+                <div className="p-3 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <ShieldCheck className="w-4 h-4 text-teal-700" />
+                    <span>Injected via Gazette Circular 2026/09</span>
+                  </div>
+                  <p className="text-[11px] text-teal-800 leading-relaxed">
+                    Mandatory for agro-processing units extracting ground water with capital outlay &gt; ₹10.0 Crores.
                   </p>
                 </div>
               )}
 
+              {/* Prerequisites list */}
+              {selectedNode.prerequisites && selectedNode.prerequisites.length > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  <span className="font-bold text-slate-700 block">
+                    Statutory Prerequisites:
+                  </span>
+                  <div className="space-y-1">
+                    {selectedNode.prerequisites.map((prereq) => (
+                      <div
+                        key={prereq}
+                        className="px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-mono text-[11px] flex items-center justify-between"
+                      >
+                        <span>{prereq}</span>
+                        <span className="text-[10px] text-emerald-700 font-sans font-semibold">
+                          Satisfied
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action */}
               {selectedNode.status === 'READY_TO_APPLY' && (
                 <button
                   onClick={() => {
                     onApproveNode(selectedNode.approvalCode);
                     setSelectedNode(null);
                   }}
-                  className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 transition-colors"
+                  className="w-full mt-4 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Grant Statutory Approval</span>
+                  <span>Grant Statutory Clearance</span>
                 </button>
               )}
             </div>

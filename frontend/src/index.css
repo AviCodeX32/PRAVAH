@@ -4,63 +4,60 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
-/* Custom hairline scrollbars for dense cockpit displays */
+/* Crisp subtle scrollbars for institutional dashboards */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0B0D13;
+  background: #F8FAFC;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262B3D;
-  border-radius: 2px;
+  background: #CBD5E1;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3B425A;
+  background: #94A3B8;
 }
 
-/* React Flow custom styling for Stitch Institutional dark mode */
+/* React Flow light styling for government-grade canvas */
 .react-flow__background {
-  background-color: #0B0D13 !important;
+  background-color: #F8FAFC !important;
 }
 
 .react-flow__handle {
-  width: 8px !important;
-  height: 8px !important;
-  border-radius: 2px !important;
-  background-color: #3B425A !important;
-  border: 1px solid #64748B !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background-color: #0F294A !important;
+  border: 2px solid #FFFFFF !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
 }
 
 .react-flow__edge-path {
-  stroke: #3B425A !important;
-  stroke-width: 1.5 !important;
-}
-
-.react-flow__edge.selected .react-flow__edge-path {
-  stroke: #38BDF8 !important;
+  stroke: #94A3B8 !important;
+  stroke-width: 2 !important;
 }
 
 .react-flow__controls {
-  box-shadow: none !important;
-  border: 1px solid #262B3D !important;
-  background-color: #12151E !important;
-  border-radius: 4px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #E2E8F0 !important;
+  background-color: #FFFFFF !important;
+  border-radius: 8px !important;
   overflow: hidden;
 }
 
 .react-flow__controls-button {
-  background-color: #12151E !important;
-  border-bottom: 1px solid #262B3D !important;
-  fill: #94A3B8 !important;
-  color: #94A3B8 !important;
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  fill: #475569 !important;
+  color: #475569 !important;
 }
 
 .react-flow__controls-button:hover {
-  background-color: #1A1E2B !important;
-  fill: #F1F5F9 !important;
+  background-color: #F1F5F9 !important;
+  fill: #0F294A !important;
 }

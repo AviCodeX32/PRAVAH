@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import HeaderBar from './components/HeaderBar.jsx';
-import RegulatoryDagView from './components/RegulatoryDagView.jsx';
-import CentralWorkspace from './components/CentralWorkspace.jsx';
-import EvidenceWalletAndAudit from './components/EvidenceWalletAndAudit.jsx';
+import AppHeader from './components/layout/AppHeader.jsx';
+import AppSidebar from './components/layout/AppSidebar.jsx';
+import GoldenPathTourModal from './components/common/GoldenPathTourModal.jsx';
+
+// 8 Modular Views
+import OverviewView from './views/OverviewView.jsx';
+import ApprovalsView from './views/ApprovalsView.jsx';
+import DocumentsView from './views/DocumentsView.jsx';
+import ComplianceView from './views/ComplianceView.jsx';
+import WorkflowView from './views/WorkflowView.jsx';
+import IntelligenceView from './views/IntelligenceView.jsx';
+import AnalyticsView from './views/AnalyticsView.jsx';
+import AdminView from './views/AdminView.jsx';
 
 const PROJECT_ID = 'MAHA-AGRO-2026-8812';
 
@@ -14,7 +23,13 @@ export default function App() {
   const [rules, setRules] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [ragState, setRagState] = useState({ isLoading: false, result: null });
-  const [activeTab, setActiveTab] = useState('roadmap'); // 'roadmap' | 'document' | 'copilot' | 'evidence'
+
+  // Navigation and Role State
+  const [userRole, setUserRole] = useState('investor'); // 'investor' | 'officer' | 'admin'
+  const [currentSection, setCurrentSection] = useState('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
 
   // Fetch full project snapshot
   const fetchProjectData = useCallback(async () => {
@@ -72,8 +87,7 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         await fetchProjectData();
-        // Switch to document tab to show the friendly reconciliation card
-        setActiveTab('document');
+        setCurrentSection('verification_mismatches');
       }
     } catch (err) {
       console.error('Error uploading CA cert:', err);
@@ -116,7 +130,6 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         await fetchProjectData();
-        setActiveTab('roadmap');
       }
     } catch (err) {
       console.error('Error approving node:', err);
@@ -125,6 +138,7 @@ export default function App() {
 
   const handleApproveMidc = () => {
     handleApproveNode('MIDC_LAND_ALLOCATION');
+    setCurrentSection('dependency_graph');
   };
 
   // Handler: Advance SLA Timeline +25 Days (Step 3)
@@ -141,7 +155,7 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         await fetchProjectData();
-        setActiveTab('roadmap');
+        setCurrentSection('sla_guardian');
       }
     } catch (err) {
       console.error('Error simulating SLA:', err);
@@ -170,7 +184,7 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         await fetchProjectData();
-        setActiveTab('roadmap');
+        setCurrentSection('dependency_graph');
       }
     } catch (err) {
       console.error('Error simulating policy change:', err);
@@ -188,7 +202,7 @@ export default function App() {
       if (data.success) {
         setRagState({ isLoading: false, result: null });
         await fetchProjectData();
-        setActiveTab('roadmap');
+        setCurrentSection('dashboard');
       }
     } catch (err) {
       console.error('Error resetting project:', err);
@@ -216,79 +230,234 @@ export default function App() {
     }
   };
 
+  // Golden Path Tour Step Execution
+  const handleExecuteTourStep = async (step) => {
+    setCurrentSection(step.module);
+    if (step.step === 6) {
+      await handleUploadCaCert();
+    } else if (step.step === 8) {
+      setCurrentSection('verification_mismatches');
+    } else if (step.step === 11) {
+      await handleSimulateSla();
+    } else if (step.step === 13) {
+      await handleApproveMidc();
+    } else if (step.step === 16) {
+      await handleSimulatePolicy();
+    }
+  };
+
   const investmentFact = evidence?.find((e) => e.factKey === 'GROSS_PROJECT_INVESTMENT');
-  const hasActionItem = investmentFact?.validationState === 'DISCREPANCY_FLAGGED';
+  const activeDiscrepancy = investmentFact?.validationState === 'DISCREPANCY_FLAGGED';
+  const rawNodes = graph?.nodes || [];
+  const midcNode = rawNodes.find((n) => n.approvalCode === 'MIDC_LAND_ALLOCATION');
+  const slaRiskTier = midcNode?.slaRiskTier || 'NOMINAL';
+
+  // Section Group Determiners
+  const isOverview = ['dashboard', 'my_projects', 'notifications'].includes(currentSection);
+  const isApprovals = [
+    'project_profile',
+    'discover_approvals',
+    'approval_roadmap',
+    'applications',
+    'approval_tracking',
+    'dependency_graph',
+  ].includes(currentSection);
+  const isDocuments = [
+    'document_repository',
+    'document_checklist',
+    'evidence_wallet',
+    'document_intelligence',
+    'verification_mismatches',
+  ].includes(currentSection);
+  const isCompliance = [
+    'compliance_tracker',
+    'regulatory_knowledge_base',
+    'regulatory_ai_assistant',
+    'regulatory_changes',
+    'renewals',
+  ].includes(currentSection);
+  const isWorkflow = [
+    'workflow_management',
+    'sla_guardian',
+    'inspections',
+    'queries_grievances',
+    'escalations',
+    'critical_path',
+  ].includes(currentSection);
+  const isIntelligence = [
+    'risk_predictions',
+    'bottleneck_intelligence',
+    'regulatory_digital_twin',
+    'change_impact_analysis',
+    'ai_copilot',
+  ].includes(currentSection);
+  const isAnalytics = [
+    'investor_analytics',
+    'officer_command_center',
+    'department_performance',
+    'reports',
+  ].includes(currentSection);
+  const isAdmin = [
+    'users_roles',
+    'departments_services',
+    'rules_regulations',
+    'integrations',
+    'audit_logs',
+    'settings',
+  ].includes(currentSection);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
-      {/* Redesigned Executive Header */}
-      <HeaderBar
-        project={project}
-        graph={graph}
-        isConnected={isConnected}
-        onUploadCaCert={handleUploadCaCert}
-        onApproveMidc={handleApproveMidc}
-        onSimulateSla={handleSimulateSla}
-        onSimulatePolicy={handleSimulatePolicy}
-        onResetProject={handleResetProject}
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        hasActionItem={hasActionItem}
+    <div className="h-screen w-screen flex bg-slate-50 text-slate-900 overflow-hidden font-sans select-none">
+      {/* 1. Left Collapsible Sidebar */}
+      <AppSidebar
+        currentSection={currentSection}
+        onSelectSection={setCurrentSection}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        activeDiscrepancy={activeDiscrepancy}
+        slaRiskTier={slaRiskTier}
       />
 
-      {/* Spacious Full-Width Workspace Container */}
-      <main className="flex-1 overflow-hidden relative">
-        {activeTab === 'roadmap' && (
-          <RegulatoryDagView
-            graph={graph}
-            onApproveNode={handleApproveNode}
-          />
-        )}
+      {/* 2. Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top Header */}
+        <AppHeader
+          project={project}
+          userRole={userRole}
+          onSelectRole={setUserRole}
+          onOpenTour={() => setIsTourOpen(true)}
+          onUploadCaCert={handleUploadCaCert}
+          onApproveMidc={handleApproveMidc}
+          onSimulateSla={handleSimulateSla}
+          onSimulatePolicy={handleSimulatePolicy}
+          onResetProject={handleResetProject}
+          activeDiscrepancy={activeDiscrepancy}
+        />
 
-        {activeTab === 'document' && (
-          <CentralWorkspace
-            project={project}
-            evidence={evidence}
-            onReconcileFact={handleReconcileFact}
-            onQueryRag={handleQueryRag}
-            ragState={ragState}
-            rules={rules}
-            activeSubView="document"
-          />
-        )}
+        {/* Dynamic Workspace Container */}
+        <main className="flex-1 overflow-hidden relative bg-slate-50">
+          {/* Module 1: Overview */}
+          {isOverview && (
+            <OverviewView
+              project={project}
+              graph={graph}
+              evidence={evidence}
+              auditLogs={auditLogs}
+              userRole={userRole}
+              onNavigate={setCurrentSection}
+              onUploadCaCert={handleUploadCaCert}
+              onApproveMidc={handleApproveMidc}
+              onSimulateSla={handleSimulateSla}
+              activeDiscrepancy={activeDiscrepancy}
+            />
+          )}
 
-        {activeTab === 'copilot' && (
-          <CentralWorkspace
-            project={project}
-            evidence={evidence}
-            onReconcileFact={handleReconcileFact}
-            onQueryRag={handleQueryRag}
-            ragState={ragState}
-            rules={rules}
-            activeSubView="rag"
-          />
-        )}
+          {/* Module 2: Project & Approvals */}
+          {isApprovals && (
+            <ApprovalsView
+              subSection={currentSection}
+              project={project}
+              graph={graph}
+              onApproveNode={handleApproveNode}
+              onNavigate={setCurrentSection}
+            />
+          )}
 
-        {activeTab === 'evidence' && (
-          <EvidenceWalletAndAudit
-            evidence={evidence}
-            auditLogs={auditLogs}
-            onReconcileFact={handleReconcileFact}
-          />
-        )}
-      </main>
+          {/* Module 3: Documents & Evidence */}
+          {isDocuments && (
+            <DocumentsView
+              subSection={currentSection}
+              project={project}
+              evidence={evidence}
+              auditLogs={auditLogs}
+              onUploadCaCert={handleUploadCaCert}
+              onReconcileFact={handleReconcileFact}
+              activeDiscrepancy={activeDiscrepancy}
+            />
+          )}
 
-      {/* Clean Subtle Footer */}
-      <footer className="h-8 px-6 border-t border-slate-800 bg-slate-900/60 backdrop-blur-sm flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span>Statutory Intelligence Active: Maharashtra Right to Public Services Act & Water Act Framework</span>
-        </div>
-        <div className="flex items-center gap-4 text-slate-400 text-[11px]">
-          <span>PRAVAH v2.7</span>
-          <span>Deterministic State Engine</span>
-        </div>
-      </footer>
+          {/* Module 4: Compliance & Regulations */}
+          {isCompliance && (
+            <ComplianceView
+              subSection={currentSection}
+              project={project}
+              rules={rules}
+              ragState={ragState}
+              onQueryRag={handleQueryRag}
+            />
+          )}
+
+          {/* Module 5: Workflow & Monitoring */}
+          {isWorkflow && (
+            <WorkflowView
+              subSection={currentSection}
+              project={project}
+              graph={graph}
+              onSimulateSla={handleSimulateSla}
+              slaRiskTier={slaRiskTier}
+            />
+          )}
+
+          {/* Module 6: PRAVAH Intelligence */}
+          {isIntelligence && (
+            <IntelligenceView
+              subSection={currentSection}
+              project={project}
+              graph={graph}
+              onSimulatePolicy={handleSimulatePolicy}
+              onResetProject={handleResetProject}
+              onApproveMidc={handleApproveMidc}
+              onNavigate={setCurrentSection}
+            />
+          )}
+
+          {/* Module 7: Analytics & Reports */}
+          {isAnalytics && (
+            <AnalyticsView
+              subSection={currentSection}
+              project={project}
+              graph={graph}
+            />
+          )}
+
+          {/* Module 8: Administration */}
+          {isAdmin && (
+            <AdminView
+              subSection={currentSection}
+              auditLogs={auditLogs}
+              rules={rules}
+              project={project}
+            />
+          )}
+        </main>
+
+        {/* Clean Light-Themed Footer */}
+        <footer className="h-7 px-6 border-t border-slate-200 bg-white flex items-center justify-between text-[11px] text-slate-500 shrink-0">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
+              }`}
+            />
+            <span>
+              Deterministic State Engine: {isConnected ? 'Live Synchronized' : 'Connecting...'} • Supabase PostgreSQL Connected
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-400">
+            <span>PRAVAH v2.7 Government-Grade Edition</span>
+            <span>Ease of Doing Business (EoDB)</span>
+          </div>
+        </footer>
+      </div>
+
+      {/* 18-Step Interactive Golden Path Modal */}
+      <GoldenPathTourModal
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        currentStepIndex={tourStepIndex}
+        onGoToStep={setTourStepIndex}
+        onExecuteCurrentStep={handleExecuteTourStep}
+      />
     </div>
   );
 }
