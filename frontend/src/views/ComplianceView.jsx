@@ -26,6 +26,8 @@ export default function ComplianceView({
   rules = [],
   ragState,
   onQueryRag,
+  onNavigateSection,
+  lang = 'en',
 }) {
   const [activeTab, setActiveTab] = useState(subSection);
   const [ragInput, setRagInput] = useState(
@@ -36,6 +38,16 @@ export default function ComplianceView({
   React.useEffect(() => {
     if (subSection) setActiveTab(subSection);
   }, [subSection]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (onNavigateSection) {
+      if (tabId === 'compliance_tracker') onNavigateSection('compliance_tracker');
+      else if (tabId === 'regulatory_ai_assistant') onNavigateSection('statutory_queries');
+      else if (tabId === 'regulatory_knowledge_base') onNavigateSection('gazette_base');
+      else if (tabId === 'renewals') onNavigateSection('renewals_schedule');
+    }
+  };
 
   const handleRagSubmit = (e) => {
     e?.preventDefault();
@@ -92,7 +104,7 @@ export default function ComplianceView({
       <div className="px-6 py-2.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-1 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('regulatory_ai_assistant')}
+            onClick={() => handleTabChange('regulatory_ai_assistant')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'regulatory_ai_assistant'
                 ? 'bg-blue-50 text-blue-800 border border-blue-200'
@@ -104,7 +116,7 @@ export default function ComplianceView({
           </button>
 
           <button
-            onClick={() => setActiveTab('regulatory_knowledge_base')}
+            onClick={() => handleTabChange('regulatory_knowledge_base')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'regulatory_knowledge_base'
                 ? 'bg-blue-50 text-blue-800 border border-blue-200'
@@ -116,7 +128,7 @@ export default function ComplianceView({
           </button>
 
           <button
-            onClick={() => setActiveTab('compliance_tracker')}
+            onClick={() => handleTabChange('compliance_tracker')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'compliance_tracker'
                 ? 'bg-blue-50 text-blue-800 border border-blue-200'
@@ -128,7 +140,7 @@ export default function ComplianceView({
           </button>
 
           <button
-            onClick={() => setActiveTab('regulatory_changes')}
+            onClick={() => handleTabChange('regulatory_changes')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'regulatory_changes'
                 ? 'bg-blue-50 text-blue-800 border border-blue-200'
@@ -140,7 +152,7 @@ export default function ComplianceView({
           </button>
 
           <button
-            onClick={() => setActiveTab('renewals')}
+            onClick={() => handleTabChange('renewals')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'renewals'
                 ? 'bg-blue-50 text-blue-800 border border-blue-200'

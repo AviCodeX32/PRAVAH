@@ -1,172 +1,150 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PravahLogo from '../common/PravahLogo.jsx';
 import {
   LayoutDashboard,
-  FolderGit2,
-  Bell,
+  Layers,
   Building2,
-  Compass,
-  Milestone,
-  FileSpreadsheet,
-  CheckSquare,
-  Network,
-  FolderOpen,
-  ListChecks,
   Wallet,
-  FileSearch,
-  AlertTriangle,
-  ShieldAlert,
-  BookOpen,
   Bot,
-  GitCompare,
-  RotateCcw,
-  Workflow,
-  Clock,
+  Users2,
   CalendarCheck,
   MessageSquareWarning,
-  Flame,
-  Layers,
-  Sparkles,
-  TrendingDown,
-  Cpu,
-  BarChart3,
-  Users2,
-  Building,
-  Settings2,
-  Radio,
   FileCheck,
-  ChevronDown,
-  ChevronRight,
+  Database,
   PanelLeftClose,
   PanelLeftOpen,
+  AlertTriangle,
+  FolderOpen,
+  Workflow,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  ShieldAlert,
+  BookOpen,
+  RotateCcw,
 } from 'lucide-react';
+
+import { translations } from '../../locales/translations.js';
 
 export default function AppSidebar({
   currentSection,
   onSelectSection,
   isCollapsed,
   onToggleCollapse,
+  userRole = 'investor',
   activeDiscrepancy = false,
   slaRiskTier = 'NOMINAL',
+  lang = 'en',
 }) {
-  const [openGroups, setOpenGroups] = useState({
-    overview: true,
-    approvals: true,
-    documents: true,
-    compliance: false,
-    workflow: false,
-    intelligence: true,
-    analytics: false,
-    admin: false,
-  });
+  const t = translations[lang] || translations.en;
 
-  const toggleGroup = (key) => {
-    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const navGroups = [
+  // 1. Role-Filtered Navigation Definitions
+  const investorNav = [
     {
-      id: 'overview',
-      title: '1. OVERVIEW',
-      items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'my_projects', label: 'My Projects', icon: FolderGit2 },
-        { id: 'notifications', label: 'Notifications', icon: Bell, badge: '3' },
-      ],
+      id: 'dashboard',
+      label: t.navDashboard || 'Dashboard & Overview',
+      icon: LayoutDashboard,
     },
     {
-      id: 'approvals',
-      title: '2. PROJECT & APPROVALS',
-      items: [
-        { id: 'project_profile', label: 'Project Profile', icon: Building2 },
-        { id: 'discover_approvals', label: 'Discover Approvals', icon: Compass },
-        { id: 'approval_roadmap', label: 'Approval Roadmap', icon: Milestone },
-        { id: 'applications', label: 'Applications Queue', icon: FileSpreadsheet },
-        { id: 'approval_tracking', label: 'Approval Tracking', icon: CheckSquare },
-        { id: 'dependency_graph', label: 'Dependency Graph (DAG)', icon: Network, highlight: true },
-      ],
+      id: 'process_nodes',
+      label: t.navProcessNodes || 'Process Node Pipeline',
+      icon: Layers,
+      highlight: true,
+      badge: 'Core',
     },
     {
-      id: 'documents',
-      title: '3. DOCUMENTS & EVIDENCE',
-      items: [
-        { id: 'document_repository', label: 'Document Repository', icon: FolderOpen },
-        { id: 'document_checklist', label: 'Document Checklist', icon: ListChecks },
-        { id: 'evidence_wallet', label: 'Evidence Wallet', icon: Wallet, highlight: true },
-        { id: 'document_intelligence', label: 'Document Intelligence', icon: FileSearch, highlight: true },
-        {
-          id: 'verification_mismatches',
-          label: 'Verification & Mismatches',
-          icon: AlertTriangle,
-          badge: activeDiscrepancy ? 'Action Required' : null,
-          badgeColor: 'amber',
-        },
-      ],
+      id: 'department_hub',
+      label: t.navDeptHub || 'Department Documents Hub',
+      icon: Building2,
+      highlight: true,
     },
     {
-      id: 'compliance',
-      title: '4. COMPLIANCE & REGULATIONS',
-      items: [
-        { id: 'compliance_tracker', label: 'Compliance Tracker', icon: ShieldAlert },
-        { id: 'regulatory_knowledge_base', label: 'Regulatory Knowledge Base', icon: BookOpen },
-        { id: 'regulatory_ai_assistant', label: 'Regulatory AI Assistant', icon: Bot, highlight: true },
-        { id: 'regulatory_changes', label: 'Regulatory Changes', icon: GitCompare },
-        { id: 'renewals', label: 'Renewals & Expiry', icon: RotateCcw },
-      ],
+      id: 'evidence_wallet',
+      label: t.navEvidenceWallet || 'Evidence Wallet & Mismatches',
+      icon: Wallet,
+      badge: activeDiscrepancy ? 'Action Required' : null,
+      badgeColor: 'amber',
     },
     {
-      id: 'workflow',
-      title: '5. WORKFLOW & MONITORING',
-      items: [
-        { id: 'workflow_management', label: 'Workflow Management', icon: Workflow, highlight: true },
-        {
-          id: 'sla_guardian',
-          label: 'SLA Guardian',
-          icon: Clock,
-          highlight: true,
-          badge: slaRiskTier === 'BREACH_IMMINENT' ? 'Critical' : null,
-          badgeColor: 'red',
-        },
-        { id: 'inspections', label: 'Joint Inspections', icon: CalendarCheck },
-        { id: 'queries_grievances', label: 'Queries & RTS Notice', icon: MessageSquareWarning },
-        { id: 'escalations', label: 'Escalations Matrix', icon: Flame },
-        { id: 'critical_path', label: 'Critical Path Monitor', icon: Layers, highlight: true },
-      ],
+      id: 'compliance_tracker',
+      label: t.navComplianceTracker || 'Post-Approval Compliance Tracker',
+      icon: ShieldAlert,
+      highlight: true,
+      badge: 'Active',
+      badgeColor: 'blue',
     },
     {
-      id: 'intelligence',
-      title: '6. PRAVAH INTELLIGENCE',
-      items: [
-        { id: 'risk_predictions', label: 'Risk Predictions', icon: TrendingDown },
-        { id: 'bottleneck_intelligence', label: 'Bottleneck Intelligence', icon: Sparkles, highlight: true },
-        { id: 'regulatory_digital_twin', label: 'Regulatory Digital Twin', icon: Cpu, highlight: true },
-        { id: 'change_impact_analysis', label: 'Change Impact Analysis', icon: Radio, highlight: true },
-        { id: 'ai_copilot', label: 'AI Next-Action Copilot', icon: Bot, highlight: true },
-      ],
+      id: 'statutory_queries',
+      label: t.navLegalCopilot || 'Statutory AI Assistant (RAG)',
+      icon: Bot,
+      badge: slaRiskTier === 'BREACH_IMMINENT' ? 'SLA Alert' : null,
+      badgeColor: 'rose',
     },
     {
-      id: 'analytics',
-      title: '7. ANALYTICS & REPORTS',
-      items: [
-        { id: 'investor_analytics', label: 'Investor Analytics', icon: BarChart3 },
-        { id: 'officer_command_center', label: 'Officer Command Center', icon: Users2 },
-        { id: 'department_performance', label: 'Department Performance', icon: Building },
-        { id: 'reports', label: 'Statutory Reports', icon: FileCheck },
-      ],
+      id: 'gazette_base',
+      label: t.navGazetteBase || 'Gazette & Statutory Base',
+      icon: BookOpen,
     },
     {
-      id: 'admin',
-      title: '8. ADMINISTRATION',
-      items: [
-        { id: 'users_roles', label: 'Users & RBAC Roles', icon: Users2 },
-        { id: 'departments_services', label: 'Departments & Services', icon: Building2 },
-        { id: 'rules_regulations', label: 'Rules & Gazette Base', icon: BookOpen },
-        { id: 'integrations', label: 'Integration Gateway', icon: Workflow },
-        { id: 'audit_logs', label: 'Tamper-Evident Audit Log', icon: FileCheck },
-        { id: 'settings', label: 'Platform Settings', icon: Settings2 },
-      ],
+      id: 'renewals_schedule',
+      label: t.navRenewals || 'Renewals & Expiry Schedule',
+      icon: RotateCcw,
     },
   ];
+
+  const officerNav = [
+    {
+      id: 'officer_queue',
+      label: t.navScrutinyQueue || 'Scrutiny Queue (MPCB)',
+      icon: Clock,
+      badge: '3 Pending',
+      badgeColor: 'blue',
+      highlight: true,
+    },
+    {
+      id: 'dept_standards',
+      label: t.navDeptStandards || 'Department Checklists & Criteria',
+      icon: FolderOpen,
+    },
+    {
+      id: 'inspections',
+      label: t.navInspections || 'Joint Inspection Scheduler',
+      icon: CalendarCheck,
+    },
+    {
+      id: 'rts_queries',
+      label: t.navRtsQueries || 'RTS Query & Cure Tracking',
+      icon: MessageSquareWarning,
+    },
+  ];
+
+  const adminNav = [
+    {
+      id: 'services_catalog',
+      label: t.navServicesCatalog || '32 Departments & Services',
+      icon: Building2,
+    },
+    {
+      id: 'users_rbac',
+      label: t.navUsersRbac || 'Users & RBAC Permissions',
+      icon: Users2,
+    },
+    {
+      id: 'audit_ledger',
+      label: t.navAuditLedger || 'Tamper-Evident Audit Ledger',
+      icon: FileCheck,
+      highlight: true,
+    },
+    {
+      id: 'system_health',
+      label: t.navSystemHealth || 'Supabase & Gateway Health',
+      icon: Database,
+    },
+  ];
+
+  // Pick active list according to role
+  const activeNavItems =
+    userRole === 'officer' ? officerNav : userRole === 'admin' ? adminNav : investorNav;
 
   return (
     <aside
@@ -179,91 +157,93 @@ export default function AppSidebar({
         <PravahLogo size="sm" showText={!isCollapsed} />
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           title={isCollapsed ? 'Expand Navigation' : 'Collapse Navigation'}
         >
           {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Navigation Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
-        {navGroups.map((group) => {
-          const isOpen = openGroups[group.id] || isCollapsed;
+      {/* Role Indicator Banner */}
+      {!isCollapsed && (
+        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px]">
+          <span className="font-bold text-slate-400 uppercase tracking-wider">Active Portal:</span>
+          <span
+            className={`font-bold px-2 py-0.5 rounded-full ${
+              userRole === 'officer'
+                ? 'bg-emerald-100 text-emerald-800'
+                : userRole === 'admin'
+                ? 'bg-slate-200 text-slate-800'
+                : 'bg-blue-100 text-blue-800'
+            }`}
+          >
+            {userRole === 'officer'
+              ? t.roleOfficer || 'Scrutiny Officer'
+              : userRole === 'admin'
+              ? t.roleAdmin || 'Platform Admin'
+              : t.roleInvestor || 'Enterprise Investor'}
+          </span>
+        </div>
+      )}
+
+      {/* Navigation Links Scroll Area */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        {activeNavItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentSection === item.id;
 
           return (
-            <div key={group.id} className="space-y-1">
-              {!isCollapsed && (
-                <button
-                  onClick={() => toggleGroup(group.id)}
-                  className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-bold tracking-wider text-slate-400 hover:text-slate-700 uppercase"
+            <button
+              key={item.id}
+              onClick={() => onSelectSection(item.id)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-blue-50 text-blue-900 font-bold border-l-4 border-blue-600 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title={isCollapsed ? item.label : undefined}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon
+                  className={`w-4 h-4 shrink-0 ${
+                    isActive
+                      ? 'text-blue-600'
+                      : item.highlight
+                      ? 'text-teal-600'
+                      : 'text-slate-400'
+                  }`}
+                />
+                {!isCollapsed && (
+                  <span className="truncate text-left">{item.label}</span>
+                )}
+              </div>
+
+              {!isCollapsed && item.badge && (
+                <span
+                  className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                    item.badgeColor === 'amber'
+                      ? 'bg-amber-100 text-amber-800'
+                      : item.badgeColor === 'rose'
+                      ? 'bg-rose-100 text-rose-800 animate-pulse'
+                      : item.badgeColor === 'blue'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
                 >
-                  <span>{group.title}</span>
-                  {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                </button>
+                  {item.badge}
+                </span>
               )}
-
-              {isOpen && (
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = currentSection === item.id;
-
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => onSelectSection(item.id)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          isActive
-                            ? 'bg-blue-50 text-blue-900 font-semibold border-l-3 border-blue-600 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                        title={isCollapsed ? item.label : undefined}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Icon
-                            className={`w-4 h-4 shrink-0 ${
-                              isActive
-                                ? 'text-blue-600'
-                                : item.highlight
-                                ? 'text-teal-600'
-                                : 'text-slate-400'
-                            }`}
-                          />
-                          {!isCollapsed && (
-                            <span className="truncate text-left">{item.label}</span>
-                          )}
-                        </div>
-
-                        {!isCollapsed && item.badge && (
-                          <span
-                            className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                              item.badgeColor === 'amber'
-                                ? 'bg-amber-100 text-amber-800'
-                                : item.badgeColor === 'red'
-                                ? 'bg-red-100 text-red-800 animate-pulse'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            </button>
           );
         })}
       </div>
 
-      {/* Footer Info */}
+      {/* Bottom Footer Info */}
       <div className="p-3 border-t border-slate-200 bg-slate-50 text-[10px] text-slate-500 flex items-center justify-between">
         {!isCollapsed ? (
           <div>
-            <div className="font-semibold text-slate-700">GovTech Regulatory Engine</div>
-            <div>Connected: Supabase PostgreSQL</div>
+            <div className="font-semibold text-slate-700">GovTech Single Window Engine</div>
+            <div className="text-slate-400">Connected: Supabase Cloud</div>
           </div>
         ) : (
           <span className="w-2 h-2 rounded-full bg-emerald-500 mx-auto" />

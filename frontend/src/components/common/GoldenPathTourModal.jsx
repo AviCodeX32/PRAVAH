@@ -27,7 +27,7 @@ export const TOUR_STEPS = [
     step: 1,
     title: 'Create Industrial Project',
     module: 'project_profile',
-    description: 'Initiate the industrial Regulatory Digital Twin for Sahyadri Agro-Processing Facility under Maharashtra jurisdiction.',
+    description: 'Initiate the industrial Regulatory Digital Twin for the industrial enterprise under Maharashtra jurisdiction.',
     actionLabel: 'View Project Profile',
   },
   {
@@ -173,7 +173,7 @@ export default function GoldenPathTourModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                18-Step End-to-End Demonstration Tour
+                18-Step End-to-End Statutory Portal Guide
               </h3>
               <p className="text-xs text-slate-500">
                 Follow the live regulatory journey from project creation to dynamic policy shift.
@@ -234,7 +234,7 @@ export default function GoldenPathTourModal({
           {/* Steps Quick Selector Grid */}
           <div className="space-y-2">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Jump to Demonstration Milestone:
+              Jump to Statutory Milestone:
             </span>
             <div className="grid grid-cols-6 gap-2">
               {TOUR_STEPS.map((s, idx) => {

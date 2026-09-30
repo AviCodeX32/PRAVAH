@@ -29,7 +29,7 @@ export default function AdminView({
   }, [subSection]);
 
   const mockUsers = [
-    { name: 'Avnish Patil', email: 'avnish@sahyadriagro.in', role: 'Enterprise Investor', status: 'ACTIVE' },
+    { name: 'Rajesh Sharma', email: 'rajesh.sharma@agroventure.in', role: 'Enterprise Investor', status: 'ACTIVE' },
     { name: 'S.K. Deshmukh', email: 'sro.pune2@mpcb.gov.in', role: 'Scrutiny Officer (MPCB)', status: 'ACTIVE' },
     { name: 'V.R. Patil', email: 'jd.safety@dish.gov.in', role: 'Joint Director (DISH)', status: 'ACTIVE' },
     { name: 'Dr. Anand Kelkar', email: 'admin@pravah.gov.in', role: 'System SuperAdmin', status: 'ACTIVE' },

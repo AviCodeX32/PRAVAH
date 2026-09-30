@@ -54,6 +54,68 @@ router.get('/events/:projectId', (req, res) => {
   });
 });
 
+// ============================================================================
+// AUTHENTICATION & CREDENTIAL VALIDATION ENDPOINTS
+// ============================================================================
+
+router.get('/auth/check-user', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+    const exists = await DbService.checkUserExists(email);
+    res.json({ exists });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/auth/register', async (req, res) => {
+  try {
+    const { email, password, name, companyName, sector } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    // Registration is strictly for industrial persons; officer and admin roles are provisioned via seed data
+    const user = await DbService.registerUser({
+      email,
+      password,
+      name,
+      role: 'investor',
+      companyName,
+      sector,
+    });
+    res.status(201).json({ success: true, user });
+  } catch (error) {
+    const statusCode = error.status || (error.code === 'USER_ALREADY_EXISTS' ? 409 : 400);
+    res.status(statusCode).json({ success: false, error: error.message, code: error.code });
+  }
+});
+
+router.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    const user = await DbService.loginUser({ email, password });
+    res.json({ success: true, user });
+  } catch (error) {
+    const statusCode = error.status || (error.code === 'USER_NOT_FOUND' ? 404 : error.code === 'INVALID_PASSWORD' ? 401 : 400);
+    res.status(statusCode).json({ success: false, error: error.message, code: error.code });
+  }
+});
+
+router.get('/auth/users', async (req, res) => {
+  try {
+    const users = await DbService.getAllUsers();
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -64,6 +126,7 @@ router.get('/project/:projectId', async (req, res) => {
 
     const graph = await DbService.getGraph(projectId);
     const evidence = await DbService.getEvidence(projectId);
+    const documents = await DbService.getDocuments(projectId);
     const auditLogs = await DbService.getAuditLogs(projectId, 50);
     const rules = await DbService.getRules();
 
@@ -71,6 +134,7 @@ router.get('/project/:projectId', async (req, res) => {
       project,
       graph,
       evidence,
+      documents,
       auditLogs,
       rules,
     });
@@ -144,8 +208,45 @@ UDIN: 26048123ABCE99812
       mimeType,
     });
 
-    broadcastCockpitUpdate(projectId, { type: 'DOCUMENT_PROCESSED', result });
-    res.json({ success: true, result });
+    const savedDoc = await DbService.addDocument({
+      projectId,
+      documentName: fileName,
+      departmentId: req.body.departmentId || 'MPCB',
+      uploadedBy: req.body.uploadedBy || 'Enterprise Investor',
+      fileSize: req.file ? `${(req.file.size / 1024 / 1024).toFixed(1)} MB` : '1.2 MB',
+      mimeType,
+      verificationStatus: 'UNDER_SCRUTINY',
+      documentHash: result?.documentHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      officerNotes: 'Uploaded by applicant, pending officer scrutiny',
+    });
+
+    broadcastCockpitUpdate(projectId, { type: 'DOCUMENT_PROCESSED', result, document: savedDoc });
+    res.json({ success: true, result, document: savedDoc });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/documents/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const documents = await DbService.getDocuments(projectId);
+    res.json({ success: true, documents });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/documents/verify', async (req, res) => {
+  try {
+    const { projectId, documentId, verificationStatus, officerNotes } = req.body;
+    if (!projectId || !documentId) {
+      return res.status(400).json({ error: 'Missing projectId or documentId' });
+    }
+
+    const updated = await DbService.verifyDocument(projectId, documentId, verificationStatus, officerNotes);
+    broadcastCockpitUpdate(projectId, { type: 'DOCUMENT_VERIFIED', document: updated });
+    res.json({ success: true, document: updated });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

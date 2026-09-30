@@ -444,12 +444,107 @@ function getInitialAuditLogs() {
   ];
 }
 
+function getInitialDocuments() {
+  return [
+    {
+      id: 'DOC-001',
+      projectId: 'MAHA-AGRO-2026-8812',
+      documentName: 'MIDC Plot 7/12 Land Possession & Allotment Order.pdf',
+      departmentId: 'MIDC',
+      uploadedBy: 'Enterprise Investor',
+      uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+      fileSize: '2.4 MB',
+      mimeType: 'application/pdf',
+      verificationStatus: 'VERIFIED',
+      documentHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      officerNotes: 'Land possession verified against MIDC Pune registry.',
+    },
+    {
+      id: 'DOC-002',
+      projectId: 'MAHA-AGRO-2026-8812',
+      documentName: 'Chartered_Accountant_NetWorth_Certificate.pdf',
+      departmentId: 'MPCB',
+      uploadedBy: 'Enterprise Investor',
+      uploadedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+      fileSize: '1.2 MB',
+      mimeType: 'application/pdf',
+      verificationStatus: 'UNDER_SCRUTINY',
+      documentHash: '47dd7b868254eea805c879f90f135b5a2b34a1599818',
+      officerNotes: 'Awaiting fee reconciliation on ₹13.6 Cr capital outlay.',
+    },
+    {
+      id: 'DOC-003',
+      projectId: 'MAHA-AGRO-2026-8812',
+      documentName: 'Effluent_Treatment_Plant_Process_Flowchart.pdf',
+      departmentId: 'MPCB',
+      uploadedBy: 'Enterprise Investor',
+      uploadedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+      fileSize: '3.8 MB',
+      mimeType: 'application/pdf',
+      verificationStatus: 'UNDER_SCRUTINY',
+      documentHash: '8a9fbc102394871e9821734bc1023984712093847',
+      officerNotes: 'Technical review of biological aeration stage pending.',
+    },
+    {
+      id: 'DOC-004',
+      projectId: 'MAHA-AGRO-2026-8812',
+      documentName: 'Provisional_Fire_Safety_Plan_Blueprint.pdf',
+      departmentId: 'FIRE',
+      uploadedBy: 'Enterprise Investor',
+      uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+      fileSize: '4.5 MB',
+      mimeType: 'application/pdf',
+      verificationStatus: 'VERIFIED',
+      documentHash: 'c982347109283470192837410928374109283741',
+      officerNotes: '6m perimeter fire tender access road approved.',
+    },
+  ];
+}
+
+function getInitialUsers() {
+  return [
+    {
+      id: 'USR-001',
+      email: 'applicant@portal.gov.in',
+      password: 'Password@123',
+      name: 'Industrial Applicant',
+      role: 'investor',
+      companyName: 'Sahyadri Agro-Processing Facility',
+      sector: 'Food Processing',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'USR-002',
+      email: 'sro.pune@mpcb.gov.in',
+      password: 'Password@123',
+      name: 'S.K. Deshmukh',
+      role: 'officer',
+      department: 'MPCB',
+      designation: 'Sub-Regional Officer Pune II',
+      companyName: 'Maharashtra Pollution Control Board (MPCB)',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'USR-003',
+      email: 'admin@pravah.gov.in',
+      password: 'Password@123',
+      name: 'Dr. Anand Kelkar',
+      role: 'admin',
+      agency: 'Directorate of Industries',
+      companyName: 'State Industrial Directorate',
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
+
 // In-Memory Fallback Cache (keeps application 100% resilient before or after SQL execution)
 class MemoryDataStore {
   constructor() {
     this.projects = new Map();
     this.graphs = new Map();
     this.evidence = new Map();
+    this.documents = new Map();
+    this.users = new Map();
     this.rules = DEFAULT_RULES.map((r) => ({
       ...r,
       vectorEmbedding: createDeterministicEmbedding(
@@ -467,7 +562,13 @@ class MemoryDataStore {
     const g = getInitialGraph();
     this.graphs.set(g.projectId, g);
     this.evidence.set(p.projectId, getInitialEvidence());
+    this.documents.set(p.projectId, getInitialDocuments());
     this.auditLogs = getInitialAuditLogs();
+
+    this.users.clear();
+    getInitialUsers().forEach((u) => {
+      this.users.set(u.email.toLowerCase(), { ...u });
+    });
   }
 }
 
@@ -780,10 +881,261 @@ export class DbService {
   }
 
   /**
+   * Retrieves all uploaded statutory documents for a project
+   */
+  static async getDocuments(projectId) {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('uploaded_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          projectId: d.project_id,
+          documentName: d.document_name,
+          departmentId: d.department_id,
+          uploadedBy: d.uploaded_by,
+          uploadedAt: d.uploaded_at,
+          fileSize: d.file_size,
+          mimeType: d.mime_type,
+          verificationStatus: d.verification_status,
+          documentHash: d.document_hash,
+          officerNotes: d.officer_notes,
+        }));
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    return memoryStore.documents.get(projectId) || [];
+  }
+
+  /**
+   * Adds an uploaded document to project repository
+   */
+  static async addDocument(docEntry) {
+    const list = memoryStore.documents.get(docEntry.projectId) || [];
+    const newDoc = {
+      id: docEntry.id || `DOC-${Date.now()}`,
+      uploadedAt: new Date().toISOString(),
+      verificationStatus: 'UNDER_SCRUTINY',
+      ...docEntry,
+    };
+    list.unshift(newDoc);
+    memoryStore.documents.set(docEntry.projectId, list);
+
+    try {
+      await supabase.from('documents').insert({
+        id: newDoc.id,
+        project_id: newDoc.projectId,
+        document_name: newDoc.documentName,
+        department_id: newDoc.departmentId,
+        uploaded_by: newDoc.uploadedBy,
+        uploaded_at: newDoc.uploadedAt,
+        file_size: newDoc.fileSize || '1.5 MB',
+        mime_type: newDoc.mimeType || 'application/pdf',
+        verification_status: newDoc.verificationStatus,
+        document_hash: newDoc.documentHash,
+        officer_notes: newDoc.officerNotes || 'Uploaded by applicant, pending scrutiny',
+      });
+    } catch (err) {
+      // Fallback
+    }
+
+    return newDoc;
+  }
+
+  /**
+   * Updates document verification status by department officer
+   */
+  static async verifyDocument(projectId, docId, status, officerNotes) {
+    const list = memoryStore.documents.get(projectId) || [];
+    const doc = list.find((d) => d.id === docId);
+    if (doc) {
+      doc.verificationStatus = status;
+      if (officerNotes) doc.officerNotes = officerNotes;
+    }
+
+    try {
+      await supabase
+        .from('documents')
+        .update({
+          verification_status: status,
+          officer_notes: officerNotes,
+        })
+        .eq('id', docId);
+    } catch (err) {
+      // Fallback
+    }
+
+    return doc || null;
+  }
+
+  /**
    * Resets baseline data for the Golden Path demonstration
    */
   static resetBaseline() {
     memoryStore.reset();
     return true;
+  }
+
+  /**
+   * Gets user by email
+   */
+  static async getUserByEmail(email) {
+    if (!email) return null;
+    const cleanEmail = email.toLowerCase().trim();
+
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .single();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          email: data.email,
+          password: data.password_hash || data.password,
+          name: data.name,
+          role: data.role,
+          companyName: data.company_name,
+          department: data.department,
+          designation: data.designation,
+          agency: data.agency,
+          sector: data.sector,
+          createdAt: data.created_at,
+        };
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    return memoryStore.users.get(cleanEmail) || null;
+  }
+
+  /**
+   * Checks if user exists in database
+   */
+  static async checkUserExists(email) {
+    const user = await this.getUserByEmail(email);
+    return !!user;
+  }
+
+  /**
+   * Registers a new user with credentials
+   */
+  static async registerUser(userData) {
+    const cleanEmail = (userData.email || '').toLowerCase().trim();
+    if (!cleanEmail) {
+      throw new Error('Email address is required');
+    }
+    if (!userData.password || userData.password.length < 6) {
+      throw new Error('Password must be at least 6 characters');
+    }
+
+    const exists = await this.checkUserExists(cleanEmail);
+    if (exists) {
+      const err = new Error('An account with this email already exists. Please sign in instead.');
+      err.code = 'USER_ALREADY_EXISTS';
+      err.status = 409;
+      throw err;
+    }
+
+    const user = {
+      id: `USR-${Date.now()}`,
+      email: cleanEmail,
+      password: userData.password,
+      name: userData.name || 'Registered User',
+      role: 'investor', // Only industrial persons can sign up; officer and admin roles are provisioned by seed data
+      companyName: userData.companyName || '',
+      department: '',
+      designation: '',
+      agency: '',
+      sector: userData.sector || 'Industrial Enterprise',
+      createdAt: new Date().toISOString(),
+    };
+
+    memoryStore.users.set(cleanEmail, user);
+
+    try {
+      await supabase.from('users').upsert({
+        id: user.id,
+        email: user.email,
+        password_hash: user.password,
+        name: user.name,
+        role: user.role,
+        company_name: user.companyName,
+        department: user.department,
+        designation: user.designation,
+        agency: user.agency,
+        sector: user.sector,
+        created_at: user.createdAt,
+      });
+    } catch (err) {
+      // Memory store already has it
+    }
+
+    const { password: _, ...safeUser } = user;
+    return safeUser;
+  }
+
+  /**
+   * Verifies user credentials and logs in
+   */
+  static async loginUser({ email, password }) {
+    const cleanEmail = (email || '').toLowerCase().trim();
+    if (!cleanEmail) {
+      throw new Error('Email address is required');
+    }
+    if (!password) {
+      throw new Error('Password is required');
+    }
+
+    const user = await this.getUserByEmail(cleanEmail);
+    if (!user) {
+      const err = new Error('No account found with this email. Please register first.');
+      err.code = 'USER_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    if (user.password !== password) {
+      const err = new Error('Incorrect password. Please verify your credentials.');
+      err.code = 'INVALID_PASSWORD';
+      err.status = 401;
+      throw err;
+    }
+
+    const { password: _, ...safeUser } = user;
+    return safeUser;
+  }
+
+  /**
+   * Gets all registered users (without passwords)
+   */
+  static async getAllUsers() {
+    const list = Array.from(memoryStore.users.values()).map(({ password, ...u }) => u);
+    return list;
+  }
+
+  /**
+   * Comprehensive database seed for all entities
+   */
+  static async seedAll() {
+    this.resetBaseline();
+    return {
+      success: true,
+      usersCount: memoryStore.users.size,
+      projectsCount: memoryStore.projects.size,
+      graphsCount: memoryStore.graphs.size,
+      rulesCount: memoryStore.rules.length,
+      documentsCount: (memoryStore.documents.get('MAHA-AGRO-2026-8812') || []).length,
+      auditLogsCount: memoryStore.auditLogs.length,
+    };
   }
 }
