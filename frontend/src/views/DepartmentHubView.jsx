@@ -20,6 +20,7 @@ import {
   MessageSquareWarning,
 } from 'lucide-react';
 import { translations } from '../locales/translations.js';
+import { apiUrl } from '../config/api.js';
 
 export default function DepartmentHubView({
   onUploadCaCert,
@@ -36,7 +37,7 @@ export default function DepartmentHubView({
   // Fetch real uploaded documents from backend database
   const fetchDbDocuments = async () => {
     try {
-      const res = await fetch('/api/documents/MAHA-AGRO-2026-8812');
+      const res = await fetch(apiUrl('/api/documents/MAHA-AGRO-2026-8812'));
       if (res.ok) {
         const data = await res.json();
         if (data.documents) {
@@ -250,7 +251,7 @@ export default function DepartmentHubView({
       if (docItem.action === 'upload_ca') {
         await onUploadCaCert();
       } else {
-        const res = await fetch('/api/documents/upload', {
+        const res = await fetch(apiUrl('/api/documents/upload'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -277,7 +278,7 @@ export default function DepartmentHubView({
   // Officer action: Verify document or raise query in database
   const handleOfficerVerify = async (docId, newStatus, officerNotes) => {
     try {
-      const res = await fetch('/api/documents/verify', {
+      const res = await fetch(apiUrl('/api/documents/verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -12,6 +12,7 @@ import {
   Factory,
 } from 'lucide-react';
 import { translations } from '../../locales/translations.js';
+import { apiUrl, isMissingProductionBackend, API_BASE_URL } from '../../config/api.js';
 
 export default function AuthModal({
   isOpen,
@@ -52,10 +53,18 @@ export default function AuthModal({
     setErrorMsg('');
     setLoading(true);
 
+    if (isMissingProductionBackend()) {
+      setErrorMsg(
+        'Backend URL not configured on Vercel. Please add VITE_API_URL in your Vercel Project Settings pointing to your Render backend URL (e.g. https://your-backend.onrender.com) and redeploy.'
+      );
+      setLoading(false);
+      return;
+    }
+
     try {
       if (mode === 'register') {
         // Registration is exclusively for industrial applicants
-        const res = await fetch('/api/auth/register', {
+        const res = await fetch(apiUrl('/api/auth/register'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -74,11 +83,19 @@ export default function AuthModal({
           data = await res.json();
         } else {
           const rawText = await res.text();
-          throw new Error(
-            res.status === 404
-              ? 'Backend service is restarting. Please retry in a few seconds.'
-              : `Server error (${res.status}): ${rawText.slice(0, 100)}`
-          );
+          if (res.status === 404) {
+            throw new Error(
+              !API_BASE_URL
+                ? 'Backend URL not configured on Vercel. Please add VITE_API_URL in Vercel Project Settings.'
+                : 'Registration endpoint not found (404). Please ensure your Render backend service is deployed and running.'
+            );
+          } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+            throw new Error(
+              'Render backend is waking up from sleep (~45s on free tier). Please wait 30 seconds and click Register again.'
+            );
+          } else {
+            throw new Error(`Server error (${res.status}): ${rawText.slice(0, 100)}`);
+          }
         }
 
         if (!res.ok || !data.success) {
@@ -88,7 +105,7 @@ export default function AuthModal({
         onSuccessLogin(data.user);
       } else {
         // Sign In - User credentials only, role is identified and returned by the backend
-        const res = await fetch('/api/auth/login', {
+        const res = await fetch(apiUrl('/api/auth/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -103,11 +120,19 @@ export default function AuthModal({
           data = await res.json();
         } else {
           const rawText = await res.text();
-          throw new Error(
-            res.status === 404
-              ? 'Backend service is restarting. Please retry in a few seconds.'
-              : `Server error (${res.status}): ${rawText.slice(0, 100)}`
-          );
+          if (res.status === 404) {
+            throw new Error(
+              !API_BASE_URL
+                ? 'Backend URL not configured on Vercel. Please add VITE_API_URL in Vercel Project Settings.'
+                : 'Authentication endpoint not found (404). Please ensure your Render backend is running.'
+            );
+          } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+            throw new Error(
+              'Render backend is waking up from sleep (~45s on free tier). Please wait 30 seconds and click Sign In again.'
+            );
+          } else {
+            throw new Error(`Server error (${res.status}): ${rawText.slice(0, 100)}`);
+          }
         }
 
         if (!res.ok || !data.success) {
@@ -161,6 +186,13 @@ export default function AuthModal({
           setErrorMsg('Incorrect password. Please verify your credentials.');
           return;
         }
+      }
+
+      if (err.name === 'TypeError' && err.message.toLowerCase().includes('fetch')) {
+        setErrorMsg(
+          'Unable to reach backend on Render. Free-tier instance may be waking up from sleep (~45s) or backend URL is unreachable. Please wait 30 seconds and retry.'
+        );
+        return;
       }
 
       setErrorMsg(err.message || 'Authentication error occurred');

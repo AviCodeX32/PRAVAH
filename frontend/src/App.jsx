@@ -14,6 +14,7 @@ import DocumentsView from './views/DocumentsView.jsx';
 import ComplianceView from './views/ComplianceView.jsx';
 import WorkflowView from './views/WorkflowView.jsx';
 import AdminView from './views/AdminView.jsx';
+import { apiUrl, pingBackendWarmup } from './config/api.js';
 
 const PROJECT_ID = 'MAHA-AGRO-2026-8812';
 
@@ -49,10 +50,15 @@ export default function App() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
 
+  // Background warm-up ping for Render cloud free tier instance
+  useEffect(() => {
+    pingBackendWarmup();
+  }, []);
+
   // Fetch full project snapshot from backend
   const fetchProjectData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/project/${PROJECT_ID}`);
+      const res = await fetch(apiUrl(`/api/project/${PROJECT_ID}`));
       if (!res.ok) throw new Error('Failed to fetch project data');
       const data = await res.json();
       setProject(data.project);
@@ -70,7 +76,7 @@ export default function App() {
   useEffect(() => {
     fetchProjectData();
 
-    const eventSource = new EventSource(`/api/events/${PROJECT_ID}`);
+    const eventSource = new EventSource(apiUrl(`/api/events/${PROJECT_ID}`));
 
     eventSource.onopen = () => {
       setIsConnected(true);
@@ -134,7 +140,7 @@ export default function App() {
   // Statutory Workflow Handlers
   const handleUploadCaCert = async () => {
     try {
-      const res = await fetch('/api/documents/upload', {
+      const res = await fetch(apiUrl('/api/documents/upload'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: PROJECT_ID }),
@@ -151,7 +157,7 @@ export default function App() {
 
   const handleReconcileFact = async (factKey, resolutionChoice) => {
     try {
-      const res = await fetch('/api/documents/reconcile', {
+      const res = await fetch(apiUrl('/api/documents/reconcile'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,7 +177,7 @@ export default function App() {
 
   const handleApproveNode = async (approvalCode) => {
     try {
-      const res = await fetch('/api/project/approve-node', {
+      const res = await fetch(apiUrl('/api/project/approve-node'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -199,7 +205,7 @@ export default function App() {
 
   const handleSimulateSla = async () => {
     try {
-      const res = await fetch('/api/sla/simulate', {
+      const res = await fetch(apiUrl('/api/sla/simulate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,7 +229,7 @@ export default function App() {
 
   const handleSimulatePolicy = async () => {
     try {
-      const res = await fetch('/api/policy/simulate', {
+      const res = await fetch(apiUrl('/api/policy/simulate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,7 +257,7 @@ export default function App() {
 
   const handleResetProject = async () => {
     try {
-      const res = await fetch('/api/project/reset', {
+      const res = await fetch(apiUrl('/api/project/reset'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -269,7 +275,7 @@ export default function App() {
   const handleQueryRag = async (query) => {
     setRagState({ isLoading: true, result: null });
     try {
-      const res = await fetch('/api/rag/query', {
+      const res = await fetch(apiUrl('/api/rag/query'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: PROJECT_ID, query }),

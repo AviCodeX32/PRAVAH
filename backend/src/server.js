@@ -59,9 +59,20 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'HEALTHY',
+    system: 'PRAVAH Industrial Regulatory Orchestration Engine',
+    database: 'Supabase PostgreSQL Cloud',
+    supabaseUrl: process.env.SUPABASE_URL || 'https://bkidxhsahwggipciiwpm.supabase.co',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 async function startServer() {
   await verifySupabaseConnection();
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`=======================================================`);
     console.log(`  PRAVAH BACKEND RUNNING ON SUPABASE POSTGRESQL        `);
     console.log(`  Cockpit API: http://localhost:${PORT}/api            `);
