@@ -48,10 +48,11 @@ export default function OverviewView({
   const blockedCount = nodes.filter((n) => n.status === 'BLOCKED').length;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 select-none overflow-y-auto">
-      {/* ========================================================================= */}
-      {/* 1. INVESTOR / BUSINESS USER DASHBOARD                                    */}
-      {/* ========================================================================= */}
+    <div className="h-full w-full overflow-y-auto bg-slate-50 select-none">
+      <div className="p-8 max-w-7xl mx-auto space-y-8">
+        {/* ========================================================================= */}
+        {/* 1. INVESTOR / BUSINESS USER DASHBOARD                                    */}
+        {/* ========================================================================= */}
       {userRole === 'investor' && (
         <div className="space-y-6">
           {/* Welcome Banner */}
@@ -387,6 +388,7 @@ export default function OverviewView({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

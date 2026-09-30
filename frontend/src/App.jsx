@@ -378,7 +378,7 @@ export default function App() {
         />
 
         {/* Dynamic Workspace */}
-        <main className="flex-1 overflow-hidden relative bg-slate-50">
+        <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative bg-slate-50">
           {/* ================= INVESTOR PORTAL SCREENS ================= */}
           {userRole === 'investor' && (
             <>
